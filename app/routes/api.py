@@ -6,7 +6,7 @@ from app.models import ThermostatReading, SolarReading, OAuthToken
 from app.config import get_settings
 from app.security import require_owner
 from app.utils.crypto import encryption_ready
-from app.tasks.polling import status as polling_status
+from app.tasks.polling import status as polling_status, solar_status
 from app.google.pubsub_handler import status as pubsub_status
 
 router = APIRouter(prefix="/api", dependencies=[Depends(require_owner)])
@@ -32,9 +32,10 @@ def integration_status():
     settings = get_settings()
     with SessionLocal() as db:
         connected = db.scalar(select(OAuthToken.id).where(OAuthToken.provider == "google")) is not None
+        solar_connected = db.scalar(select(OAuthToken.id).where(OAuthToken.provider == "sungrow")) is not None
     return {"google": {"configured": settings.google_configured, "connected": connected,
                         "encryption_ready": encryption_ready(), "polling": dict(polling_status), "pubsub": dict(pubsub_status)},
-            "sungrow": {"state": "deferred", "message": "Pending official API details"},
+            "sungrow": {"configured": settings.sungrow_configured, "connected": solar_connected, "encryption_ready": encryption_ready(), "polling": dict(solar_status)},
             "polling_interval_seconds": settings.polling_interval_seconds}
 
 @router.get("/history")

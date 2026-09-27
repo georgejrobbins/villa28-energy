@@ -18,14 +18,14 @@ async def lifespan(app):
     tasks = []
     if get_settings().background_tasks_enabled:
         tasks = [asyncio.create_task(start_polling()), asyncio.create_task(run_subscriber())]
-    logger.info("villa28-energy started; Sungrow deferred")
+    logger.info("villa28-energy started; read-only monitoring")
     try:
         yield
     finally:
         for task in tasks: task.cancel()
         await asyncio.gather(*tasks, return_exceptions=True)
 
-app = FastAPI(title="villa28-energy", version="1.1.0", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
+app = FastAPI(title="villa28-energy", version="1.2.0", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
 app.include_router(health.router)
 app.include_router(auth.router)
 app.include_router(api.router)
@@ -38,7 +38,7 @@ async def response_headers(request, call_next):
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["Referrer-Policy"] = "no-referrer"
     response.headers["X-Frame-Options"] = "DENY"
-    response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'"
+    response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
     if not request.url.path.startswith("/static/"):
         response.headers["Cache-Control"] = "no-store"
     return response

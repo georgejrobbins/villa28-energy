@@ -42,12 +42,11 @@ def test_missing_password_fails_closed(client,monkeypatch):
     assert client.get('/').status_code==503
     assert client.get('/health').status_code==200
 
-def test_sungrow_paused_no_http(client,monkeypatch):
+def test_sungrow_unconfigured_no_http(client,monkeypatch):
     import requests
-    monkeypatch.setattr(requests,'get',Mock(side_effect=AssertionError('Unexpected request')))
-    for path in ['/auth/sungrow','/auth/sungrow/callback']:
-        response=client.get(path);assert response.status_code==503
-        assert response.json()['status']=='deferred'
+    monkeypatch.setattr(requests,'post',Mock(side_effect=AssertionError('Unexpected request')))
+    assert client.get('/auth/sungrow').status_code==503
+    assert client.get('/auth/sungrow/callback').status_code==400
 
 def test_current_multiple_zones_and_nulls(client):
     with SessionLocal.begin() as db:

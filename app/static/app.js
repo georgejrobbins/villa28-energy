@@ -46,14 +46,20 @@ function renderSolar(rows) {
     if (!rows.length) { container.append(element('p', 'Solar readings will appear after the Sungrow integration is configured.', 'loading')); return; }
     rows.forEach(s => {
         const card = element('article', undefined, 'card');
-        card.append(element('h3', `Installation ${s.installation_id}`));
-        metric(card, 'Available generation', format(s.available_generation, 2, ' kW'));
+        card.append(element('h3', s.installation_name || `Installation ${s.installation_id}`));
+
         metric(card, 'Power', format(numeric(s.instantaneous_power) ? s.instantaneous_power / 1000 : null, 2, ' kW'));
         metric(card, 'Today', format(s.daily_generation, 2, ' kWh'));
+        metric(card, 'Imported today', format(s.grid_import_daily, 2, ' kWh'));
+        metric(card, 'Exported today', format(s.grid_export_daily, 2, ' kWh'));
         metric(card, 'Grid import', format(s.grid_import_power, 0, ' W'));
         metric(card, 'Grid export', format(s.grid_export_power, 0, ' W'));
         metric(card, 'Battery power', format(s.battery_power, 0, ' W'));
-        metric(card, 'Battery charge', format(s.battery_soc, 1, '%')); container.append(card);
+        metric(card, 'Battery charge', format(s.battery_soc, 1, '%'));
+        metric(card, 'Provider reading (plant local time)', s.provider_time || 'Not available');
+        metric(card, 'Last retrieved', new Date(s.timestamp).toLocaleString());
+        card.append(element('p', 'Unavailable fields are not reported or not yet verified for this installation.', 'legend'));
+        container.append(card);
     });
 }
 function updateDeviceList(data) {
@@ -73,6 +79,10 @@ async function refresh() {
         $('pubsub-status').textContent = g.pubsub.state === 'listening' ? 'Live events: listening' : g.pubsub.state === 'error' ? 'Live events: reconnecting; polling remains active.' : 'Live events: Pub/Sub service account and subscription setup required.';
         $('google-auth').disabled = !g.configured || !g.encryption_ready;
         $('google-auth').textContent = g.connected ? 'Reconnect Google Nest' : 'Connect Google Nest';
+        const sg = status.sungrow;
+        $('sungrow-status').textContent = !sg.configured ? 'Sungrow credentials need configuration in Railway.' : !sg.connected ? 'Ready to connect your iSolarCloud installation.' : sg.polling.state === 'error' ? 'Connected, but the latest reading failed. Check Railway logs.' : 'Sungrow connected. Readings update every five minutes or the configured longer interval.';
+        $('sungrow-auth').disabled = !sg.configured || !sg.encryption_ready;
+        $('sungrow-auth').textContent = sg.connected ? 'Reconnect Sungrow' : 'Connect Sungrow';
         $('last-update').textContent = new Date().toLocaleString(); $('error').hidden = true;
         clearTimeout(timer); timer = setTimeout(refresh, 30000);
     } catch (error) { $('error').textContent = error.message; $('error').hidden = false; clearTimeout(timer); timer = setTimeout(refresh, 30000); }
@@ -121,3 +131,5 @@ async function loadHistory() {
 $('google-auth').addEventListener('click', async () => {try {const data=await api('/auth/google');window.location.assign(data.auth_url);} catch(error) {$('error').textContent=error.message;$('error').hidden=false;}});
 $('load-history').addEventListener('click',loadHistory);
 refresh().then(() => {if(devices.length) loadHistory();});
+
+$('sungrow-auth').addEventListener('click', async () => {try {const data=await api('/auth/sungrow');window.location.assign(data.auth_url);} catch(error) {$('error').textContent=error.message;$('error').hidden=false;}});

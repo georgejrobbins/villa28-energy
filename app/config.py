@@ -20,6 +20,15 @@ class Settings(BaseSettings):
     railway_public_domain: str = ""
     public_base_url: str = ""
     background_tasks_enabled: bool = True
+    sungrow_client_id: str = ""  # Sungrow appkey
+    sungrow_client_secret: str = ""  # x-access-key
+    sungrow_application_id: str = "4161"
+    sungrow_api_url: str = "https://gateway.isolarcloud.com.hk"
+
+    @property
+    def sungrow_configured(self):
+        return bool(self.sungrow_client_id and self.sungrow_client_secret and self.sungrow_application_id and self.sungrow_api_url.rstrip("/") == "https://gateway.isolarcloud.com.hk")
+
 
     @property
     def device_access_project_id(self):
