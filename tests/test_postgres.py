@@ -19,8 +19,9 @@ def test_postgres_migrations_repeat_and_serialize(monkeypatch):
             list(pool.map(lambda _: database.init_db(), range(2)))
         database.init_db()
         with engine.connect() as conn:
-            assert conn.scalar(text('SELECT COUNT(*) FROM schema_migrations')) == 3
+            assert conn.scalar(text('SELECT COUNT(*) FROM schema_migrations')) == 4
             assert conn.scalar(text('SELECT COUNT(*) FROM thermostat_readings')) == 0
+            conn.execute(text("INSERT INTO solar_readings(installation_id, installation_name, grid_import_daily, grid_export_daily, provider_time) VALUES ('test', 'Test plant', 1.5, 2.5, '20260927100000')"))
             conn.execute(text("INSERT INTO thermostat_readings(device_id, target_heat_temperature, source) VALUES ('test', 20, 'poll')"))
     finally:
         engine.dispose()
