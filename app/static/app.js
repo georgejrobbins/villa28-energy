@@ -33,8 +33,8 @@ function renderThermostats(rows) {
         card.append(element('div', format(t.ambient_temperature, 1, ' °C'), 'temperature'));
         const target = t.mode === 'HEATCOOL' ? `${format(t.target_heat_temperature, 1, ' °C')} – ${format(t.target_cool_temperature, 1, ' °C')}` : format(t.target_temperature, 1, ' °C');
         metric(card, 'Target', target); metric(card, 'Humidity', format(t.humidity, 1, '%'));
-        metric(card, 'Mode', t.mode || 'Unknown'); metric(card, 'HVAC', t.hvac_status || 'Unknown');
-        metric(card, 'Eco', t.eco_state || 'Unknown'); metric(card, 'Connectivity', t.connectivity || 'Unknown');
+        metric(card, 'Mode', t.mode || 'Unknown'); metric(card, 'AC activity', t.hvac_status === 'COOLING' ? 'Cooling' : t.hvac_status === 'OFF' ? 'Idle' : t.hvac_status || 'Unknown');
+        metric(card, 'Property status (Eco proxy)', t.eco_state === 'MANUAL_ECO' ? 'Away from property' : t.eco_state === 'OFF' ? 'Normal / Eco off' : 'Unknown'); metric(card, 'Connectivity', t.connectivity || 'Unknown');
         metric(card, 'Reading', new Date(t.timestamp).toLocaleString());
         const age = Date.now() - new Date(t.timestamp).getTime();
         if (age > 15 * 60 * 1000) card.append(element('p', 'This reading is more than 15 minutes old.', 'stale'));
@@ -106,7 +106,7 @@ function drawChart(container, rows, series, title, unit) {
         rows.forEach(row => { if (!numeric(row[s.key])) {started=false;return;} const xx=x(new Date(row.timestamp).getTime()), yy=y(row[s.key]);if(started)ctx.lineTo(xx,yy);else ctx.moveTo(xx,yy);started=true; });ctx.stroke();
         if(rows.length===1 && numeric(rows[0][s.key])) {ctx.beginPath();ctx.arc(x(minTime),y(rows[0][s.key]),4,0,2*Math.PI);ctx.fill();}
     });
-    ctx.fillStyle='#50635b';ctx.fillText(new Date(minTime).toLocaleString(),pad.left,canvas.height-12);ctx.textAlign='right';ctx.fillText(new Date(maxTime).toLocaleString(),canvas.width-pad.right,canvas.height-12);
+    ctx.fillStyle='#50635b';ctx.fillText(new Date(minTime).toLocaleString('en-GB',{timeZone:'Asia/Dubai'}),pad.left,canvas.height-12);ctx.textAlign='right';ctx.fillText(new Date(maxTime).toLocaleString('en-GB',{timeZone:'Asia/Dubai'}),canvas.width-pad.right,canvas.height-12);
     card.append(canvas,element('p',series.map(s=>s.label).join(' · ') + ' ('+unit+')','legend'));container.append(card);
 }
 async function loadHistory() {
@@ -146,7 +146,7 @@ function parseReference(text, withTarget) {
     if(rows.some((r,i)=>i && rows[i-1].b>r.a)) throw new Error('Reference periods cannot overlap.');
     return rows;
 }
-function minutesText(value) {return `${Math.floor(value/60)}h ${Math.round(value%60)}m`;}
+function minutesText(value) {const minutes=Math.round(value);return `${Math.floor(minutes/60)}h ${minutes%60}m`;}
 function renderRuntime(data) {
     const container=$('runtime-list');container.replaceChildren();
     const start=Date.parse(data.start), end=Date.parse(data.end), span=end-start;
@@ -154,18 +154,18 @@ function renderRuntime(data) {
     data.devices.forEach(device=>{
         const card=element('article',undefined,'runtime-row');card.append(element('h3',device.device_name));
         const totals=device.minutes;
-        card.append(element('p',`Estimated cooling ${minutesText(totals.COOLING)} · Off ${minutesText(totals.OFF)} · Eco reported ${minutesText(totals.ECO)} · Unknown ${minutesText(totals.UNKNOWN)}`));
+        card.append(element('p',`Estimated cooling ${minutesText(totals.COOLING)} · Idle ${minutesText(totals.OFF)} · Away (Eco) ${minutesText(totals.ECO)} · Unknown ${minutesText(totals.UNKNOWN)}`));
         const detail=element('p','Select a coloured period to see times and the recorded target.','runtime-details');
         const axis=element('div',undefined,'runtime-axis');axis.append(element('span',dubaiTime(start)),element('span',dubaiTime(end)));card.append(axis);
         for(const kind of ['hvac','eco']) {
-            card.append(element('p',kind==='hvac'?'AC activity':'Eco reported by Nest','legend'));
+            card.append(element('p',kind==='hvac'?'AC activity':'Away from property (Eco proxy)','legend'));
             const track=element('div',undefined,'runtime-track'+(kind==='eco'?' eco-track':''));
             device.segments.forEach(s=>{
                 const state=kind==='hvac'?s.hvac:s.eco;
                 const color=state==='MANUAL_ECO'?'eco':state.toLowerCase();
                 const button=element('button',undefined,'runtime-segment runtime-'+color);
                 button.type='button';button.style.width=((Date.parse(s.end)-Date.parse(s.start))/span*100)+'%';
-                const label=`${dubaiTime(s.start)}–${dubaiTime(s.end)} · ${state==='MANUAL_ECO'?'Eco reported':state.toLowerCase()} · Cooling target ${format(s.target_cool_temperature,1,' °C')} · ${s.source==='gap'?'No recent reading':'Estimated from recorded states'}`;
+                const label=`${dubaiTime(s.start)}–${dubaiTime(s.end)} · ${state==='MANUAL_ECO'?'Away from property (Eco)':state==='OFF'?(kind==='hvac'?'Idle':'Eco off'):state.toLowerCase()} · Cooling target ${format(s.target_cool_temperature,1,' °C')} · ${s.source==='gap'?'No recent reading':'Estimated from recorded states'}`;
                 button.title=label;button.setAttribute('aria-label',label);button.addEventListener('click',()=>{detail.textContent=label;});track.append(button);
             });card.append(track);
         }
@@ -206,3 +206,22 @@ async function loadRuntime() {
 $('runtime-day').value=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Dubai',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
 $('runtime-load').addEventListener('click',loadRuntime);
 loadRuntime();
+
+async function loadSolarHistory() {
+    const container=$('solar-history-charts');
+    $('solar-history-status').textContent='Loading solar history…';
+    try {
+        const data=await api('/api/solar-timeline?hours='+$('solar-hours').value);container.replaceChildren();
+        let count=0;
+        for(const plant of data.installations){
+            const rows=plant.readings;count+=rows.length;if(!rows.length)continue;
+            container.append(element('h3',plant.name||`Installation ${plant.installation_id}`));
+            drawChart(container,rows.map(r=>({...r,power_kw:numeric(r.instantaneous_power)?r.instantaneous_power/1000:null})),[{key:'power_kw',label:'Solar power',color:'#d98235'}],'Production power','kW');
+            drawChart(container,rows,[{key:'generation_kwh',label:'Produced',color:'#d98235'},{key:'import_kwh',label:'Imported',color:'#bf5252'},{key:'export_kwh',label:'Exported',color:'#137b60'}],'Energy between readings (normally five minutes)','kWh');
+            drawChart(container,rows,[{key:'daily_generation',label:'Produced today',color:'#d98235'},{key:'grid_import_daily',label:'Imported today',color:'#bf5252'},{key:'grid_export_daily',label:'Exported today',color:'#137b60'}],'Daily cumulative totals (reset each day)','kWh');
+        }
+        $('solar-history-status').textContent=count?`${count} provider readings. ${data.note}`:'Waiting for solar readings. Charts appear after collection; interval energy requires two readings.';
+    }catch(error){$('solar-history-status').textContent=error.message;}
+}
+$('solar-load').addEventListener('click',loadSolarHistory);
+loadSolarHistory();

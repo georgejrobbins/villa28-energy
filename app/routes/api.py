@@ -104,3 +104,36 @@ def thermostat_timeline(day: str | None = None):
             'end':end.isoformat()+'Z','devices':result,'gap_minutes':tolerance/60,
             'polling_seconds':get_settings().polling_interval_seconds,
             'stages_available':False,'occupancy_available':False,'nest_schedule_available':False}
+
+@router.get('/solar-timeline')
+def solar_timeline(hours: int = Query(24,ge=1,le=720)):
+    from app.solar_history import solar_intervals
+    since=datetime.utcnow()-timedelta(hours=hours)
+    gap=max(660,get_settings().polling_interval_seconds*2+60)
+    result=[]
+    with SessionLocal() as db:
+        for plant in latest(db,SolarReading,SolarReading.installation_id):
+            rows=db.scalars(select(SolarReading).where(SolarReading.installation_id==plant.installation_id,
+                SolarReading.timestamp>=since-timedelta(seconds=gap)).order_by(SolarReading.timestamp,SolarReading.id)).all()
+            samples=solar_intervals(rows,gap)
+            samples=[r for r in samples if r['timestamp']>=since.isoformat()+'Z']
+            result.append({'installation_id':plant.installation_id,'name':plant.installation_name,'readings':samples})
+    return {'installations':result,'timezone':'Asia/Dubai','note':'Energy is the change between consecutive provider samples, normally about five minutes. Resets and gaps are omitted. This is not a revenue-grade meter.'}
+
+@router.get('/export-history')
+def export_history(provider: str = Query(pattern='^(nest|solar)$'),days: int = Query(30,ge=1,le=90)):
+    import csv,io
+    from fastapi import HTTPException
+    from fastapi.responses import Response
+    model=ThermostatReading if provider=='nest' else SolarReading
+    with SessionLocal() as db:
+        rows=db.scalars(select(model).where(model.timestamp>=datetime.utcnow()-timedelta(days=days)).order_by(model.timestamp,model.id).limit(200001)).all()
+        if len(rows)>200000:
+            raise HTTPException(422,'Too many readings. Choose fewer days.')
+        columns=[c.name for c in model.__table__.columns if c.name!='id']
+        output=io.StringIO();writer=csv.writer(output);writer.writerow(columns)
+        for row in rows:
+            values=serialize(row)
+            # Treat provider names as text, not spreadsheet formulas.
+            writer.writerow([("'"+v if isinstance(v,str) and v.startswith(('=','+','-','@')) else v) for v in (values[k] for k in columns)])
+    return Response(output.getvalue(),media_type='text/csv',headers={'Content-Disposition':f'attachment; filename="villa28-{provider}-{days}days.csv"'})
