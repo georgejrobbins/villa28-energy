@@ -16,7 +16,7 @@ Push this repository to the connected `main` branch. The existing Railway servic
 
 Railway service settings:
 
-- Start command: `uvicorn app.main:app --host 0.0.0.0 --port $PORT --no-access-log`
+- Start command: `python -m app.run`
 - Healthcheck: `/health` (allow 120 seconds)
 - Database variable: `DATABASE_URL=${{Postgres.DATABASE_URL}}`
 - The Dockerfile also provides a start command using `PORT`, defaulting to 8000 locally.

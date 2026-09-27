@@ -175,3 +175,12 @@ def test_html_and_css_parse():
     parser=html5lib.HTMLParser(strict=True);parser.parse((static/'index.html').read_text())
     rules=tinycss2.parse_stylesheet((static/'style.css').read_text(),skip_whitespace=True,skip_comments=True)
     assert all(rule.type!='error' for rule in rules)
+
+def test_launcher_reads_port_without_shell(monkeypatch):
+    import runpy
+    import uvicorn
+    monkeypatch.setenv('PORT','9123')
+    run=Mock()
+    monkeypatch.setattr(uvicorn,'run',run)
+    runpy.run_module('app.run',run_name='__main__')
+    run.assert_called_once_with('app.main:app',host='0.0.0.0',port=9123,access_log=False)
