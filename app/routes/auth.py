@@ -108,8 +108,8 @@ async def sungrow_confirm(request: Request):
     try:
         await asyncio.to_thread(exchange)
     except Exception as exc:
-        logger.error("Sungrow OAuth exchange failed (%s)", type(exc).__name__)
-        raise HTTPException(502, "Sungrow rejected authorization. Start Connect Sungrow again and check Railway credentials.") from None
+        logger.error("Sungrow OAuth exchange failed (%s, %s)", type(exc).__name__, getattr(exc, "diagnostic", "transport_or_storage_error"))
+        raise HTTPException(502, "Sungrow connection failed (" + getattr(exc, "diagnostic", "transport_or_storage_error") + "). Please report this error; credentials may not be the cause.") from None
     response = RedirectResponse("/?connected=sungrow", status_code=303)
     response.delete_cookie("sungrow_oauth_state", path="/auth/sungrow/callback")
     response.headers["Cache-Control"] = "no-store"

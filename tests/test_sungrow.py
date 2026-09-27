@@ -81,3 +81,20 @@ def test_errors_do_not_expose_provider_secrets(configured,monkeypatch):
     with pytest.raises(SungrowError) as error:
         SungrowOAuthFlow.exchange_code_for_token('private-auth-code')
     assert 'private-auth-code' not in str(error.value)
+
+@pytest.mark.parametrize('path', ['/openapi/apiManage/token', '/openapi/apiManage/refreshToken'])
+@pytest.mark.parametrize('wrapped', [False, True])
+def test_both_documented_token_response_formats(configured, monkeypatch, path, wrapped):
+    tokens={'access_token':'private-access','refresh_token':'private-refresh','expires_in':172799}
+    data={'result_code':'1','result_data':tokens} if wrapped else {'result_code':'1', **tokens}
+    monkeypatch.setattr('app.sungrow.auth.requests.post',Mock(return_value=Mock(status_code=200,json=lambda:data)))
+    assert post(path,{})['access_token']=='private-access'
+
+
+def test_failure_with_token_field_is_not_accepted(configured,monkeypatch):
+    data={'result_code':'4','result_msg':'secret detail','access_token':'untrusted'}
+    monkeypatch.setattr('app.sungrow.auth.requests.post',Mock(return_value=Mock(status_code=200,json=lambda:data)))
+    with pytest.raises(SungrowError) as error:
+        post('/openapi/apiManage/token',{})
+    assert error.value.diagnostic=='result_code_4'
+    assert 'secret detail' not in str(error.value)

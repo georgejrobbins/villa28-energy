@@ -12,7 +12,10 @@ from app.utils.crypto import encrypt_token, decrypt_token
 lock = RLock()
 
 class SungrowError(Exception):
-    pass
+    def __init__(self, message, diagnostic="provider_error"):
+        super().__init__(message)
+        self.diagnostic = diagnostic
+
 
 
 def post(path, payload, access_token=None):
@@ -29,12 +32,25 @@ def post(path, payload, access_token=None):
     if response.status_code != 200:
         raise SungrowError("Unexpected Sungrow HTTP response")
     data = response.json()
-    if data.get("error") == "invalid_token":
-        raise SungrowError("Reconnect Sungrow: token rejected")
-    if str(data.get("result_code")) != "1" or not isinstance(data.get("result_data"), dict):
-        # Provider error messages may contain credentials or authorization codes.
-        raise SungrowError("Sungrow rejected the request")
+    if not isinstance(data, dict):
+        raise SungrowError("Unexpected Sungrow response", "invalid_json_shape")
+    result_code = str(data.get("result_code", ""))
+    if data.get("error") or (result_code and result_code != "1"):
+        # Never expose provider messages, auth codes, request bodies or tokens.
+        diagnostic = "result_code_" + result_code if result_code.isdigit() and len(result_code) < 9 else "oauth_error"
+        raise SungrowError("Sungrow rejected the request", diagnostic)
+    token_endpoint = path in {"/openapi/apiManage/token", "/openapi/apiManage/refreshToken"}
+    # Quick-start examples put tokens at the root; the endpoint reference wraps
+    # them in result_data. Support both documented formats, only for OAuth.
+    if token_endpoint:
+        token_data = data.get("result_data") if isinstance(data.get("result_data"), dict) else data
+        if isinstance(token_data.get("access_token"), str) and token_data["access_token"]:
+            return token_data
+        raise SungrowError("Missing access token", "missing_access_token")
+    if result_code != "1" or not isinstance(data.get("result_data"), dict):
+        raise SungrowError("Unexpected monitoring response", "invalid_monitoring_shape")
     return data["result_data"]
+
 
 
 class SungrowOAuthFlow:
