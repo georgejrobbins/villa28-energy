@@ -70,3 +70,37 @@ def daily_summary(days: int = Query(7, ge=1, le=90)):
             if value is not None: item[field] = (item[field] or 0) + value
         if row.max_export is not None: item["max_grid_export"] = max(item["max_grid_export"] or 0, row.max_export)
     return {"summaries": [groups[k] for k in sorted(groups)], "timezone": "UTC", "note": "Average power is the sum of each installation's sample mean; max export is the largest individual installation sample."}
+
+@router.get('/thermostat-timeline')
+def thermostat_timeline(day: str | None = None):
+    from datetime import timezone
+    from zoneinfo import ZoneInfo
+    from fastapi import HTTPException
+    from app.thermostat_timeline import build_timeline
+    local_zone = ZoneInfo('Asia/Dubai')
+    now = datetime.now(timezone.utc)
+    try:
+        selected = datetime.strptime(day, '%Y-%m-%d').date() if day else now.astimezone(local_zone).date()
+    except ValueError:
+        raise HTTPException(422, 'Use a date in YYYY-MM-DD format')
+    local_start = datetime.combine(selected, datetime.min.time(), tzinfo=local_zone)
+    start = local_start.astimezone(timezone.utc).replace(tzinfo=None)
+    end = min((local_start+timedelta(days=1)).astimezone(timezone.utc), now).replace(tzinfo=None)
+    if start >= end:
+        raise HTTPException(422, 'Choose today or an earlier date')
+    tolerance = max(600, get_settings().polling_interval_seconds * 2)
+    with SessionLocal() as db:
+        devices = latest(db,ThermostatReading,ThermostatReading.device_id)
+        result=[]
+        for device in devices:
+            rows = db.scalars(select(ThermostatReading).where(
+                ThermostatReading.device_id == device.device_id,
+                ThermostatReading.timestamp >= start-timedelta(seconds=tolerance),
+                ThermostatReading.timestamp <= end
+            ).order_by(ThermostatReading.timestamp,ThermostatReading.id)).all()
+            result.append({'device_id':device.device_id,'device_name':device.device_name,
+                           **build_timeline(rows,start,end,tolerance)})
+    return {'day':str(selected),'timezone':'Asia/Dubai','start':start.isoformat()+'Z',
+            'end':end.isoformat()+'Z','devices':result,'gap_minutes':tolerance/60,
+            'polling_seconds':get_settings().polling_interval_seconds,
+            'stages_available':False,'occupancy_available':False,'nest_schedule_available':False}

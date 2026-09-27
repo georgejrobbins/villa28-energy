@@ -133,3 +133,76 @@ $('load-history').addEventListener('click',loadHistory);
 refresh().then(() => {if(devices.length) loadHistory();});
 
 $('sungrow-auth').addEventListener('click', async () => {try {const data=await api('/auth/sungrow');window.location.assign(data.auth_url);} catch(error) {$('error').textContent=error.message;$('error').hidden=false;}});
+
+const dubaiTime = value => new Date(value).toLocaleTimeString('en-GB',{timeZone:'Asia/Dubai',hour:'2-digit',minute:'2-digit'});
+function parseReference(text, withTarget) {
+    const rows = text.split('\n').map(x=>x.trim()).filter(Boolean).map(line=>{
+        const match=line.match(withTarget ? /^(\d{2}):(\d{2})-(\d{2}):(\d{2})\s+(-?\d+(?:\.\d+)?)$/ : /^(\d{2}):(\d{2})-(\d{2}):(\d{2})$/);
+        if(!match) throw new Error('Use HH:MM-HH:MM'+(withTarget?' followed by temperature in °C.':'.'));
+        const a=Number(match[1])*60+Number(match[2]), b=Number(match[3])*60+Number(match[4]);
+        if(Number(match[2])>59 || Number(match[4])>59 || a>=1440 || b>1440 || b<=a) throw new Error('Use valid times within one day. Split overnight periods at midnight.');
+        return {a,b,target:withTarget?Number(match[5]):null};
+    }).sort((a,b)=>a.a-b.a);
+    if(rows.some((r,i)=>i && rows[i-1].b>r.a)) throw new Error('Reference periods cannot overlap.');
+    return rows;
+}
+function minutesText(value) {return `${Math.floor(value/60)}h ${Math.round(value%60)}m`;}
+function renderRuntime(data) {
+    const container=$('runtime-list');container.replaceChildren();
+    const start=Date.parse(data.start), end=Date.parse(data.end), span=end-start;
+    $('runtime-status').textContent=`${data.day} · Dubai time · ${data.devices.length} rooms · More than ${data.gap_minutes} minutes without a reading is unknown. History begins when monitoring was connected.`;
+    data.devices.forEach(device=>{
+        const card=element('article',undefined,'runtime-row');card.append(element('h3',device.device_name));
+        const totals=device.minutes;
+        card.append(element('p',`Estimated cooling ${minutesText(totals.COOLING)} · Off ${minutesText(totals.OFF)} · Eco reported ${minutesText(totals.ECO)} · Unknown ${minutesText(totals.UNKNOWN)}`));
+        const detail=element('p','Select a coloured period to see times and the recorded target.','runtime-details');
+        const axis=element('div',undefined,'runtime-axis');axis.append(element('span',dubaiTime(start)),element('span',dubaiTime(end)));card.append(axis);
+        for(const kind of ['hvac','eco']) {
+            card.append(element('p',kind==='hvac'?'AC activity':'Eco reported by Nest','legend'));
+            const track=element('div',undefined,'runtime-track'+(kind==='eco'?' eco-track':''));
+            device.segments.forEach(s=>{
+                const state=kind==='hvac'?s.hvac:s.eco;
+                const color=state==='MANUAL_ECO'?'eco':state.toLowerCase();
+                const button=element('button',undefined,'runtime-segment runtime-'+color);
+                button.type='button';button.style.width=((Date.parse(s.end)-Date.parse(s.start))/span*100)+'%';
+                const label=`${dubaiTime(s.start)}–${dubaiTime(s.end)} · ${state==='MANUAL_ECO'?'Eco reported':state.toLowerCase()} · Cooling target ${format(s.target_cool_temperature,1,' °C')} · ${s.source==='gap'?'No recent reading':'Estimated from recorded states'}`;
+                button.title=label;button.setAttribute('aria-label',label);button.addEventListener('click',()=>{detail.textContent=label;});track.append(button);
+            });card.append(track);
+        }
+        card.append(detail);
+        const comparison=element('details');comparison.append(element('summary','Schedule and away comparison for this date'));
+        const key='villa28-reference:'+device.device_id+':'+data.day;
+        let saved={};try{saved=JSON.parse(localStorage.getItem(key)||'{}');}catch{}
+        const scheduleLabel=element('label','Reference cooling targets · one period per line, e.g. 08:00-18:00 24');
+        const schedule=element('textarea');schedule.value=saved.schedule||'';scheduleLabel.append(schedule);
+        const awayLabel=element('label','Known away periods · one period per line, e.g. 09:00-17:00. Entered manually, not sensed.');
+        const away=element('textarea');away.value=saved.away||'';awayLabel.append(away);
+        const apply=element('button','Save comparison in this browser','btn');apply.type='button';
+        const message=element('p','No reference supplied. Complete the schedule workbook or enter periods here.','notice');
+        function compare(save) {
+            try {
+                const plan=parseReference(schedule.value,true), absent=parseReference(away.value,false);
+                if(save)localStorage.setItem(key,JSON.stringify({schedule:schedule.value,away:away.value}));
+                let mismatch=0,compared=0,ecoAway=0,offAway=0,unknownAway=0;
+                for(const s of device.segments) {
+                    const a=(Date.parse(s.start)-start)/60000,b=(Date.parse(s.end)-start)/60000;
+                    for(const p of plan) {const overlap=Math.max(0,Math.min(b,p.b)-Math.max(a,p.a));if(numeric(s.target_cool_temperature)){compared+=overlap;if(Math.abs(s.target_cool_temperature-p.target)>0.15)mismatch+=overlap;}}
+                    for(const p of absent){const overlap=Math.max(0,Math.min(b,p.b)-Math.max(a,p.a));if(s.eco==='MANUAL_ECO')ecoAway+=overlap;else if(s.eco==='OFF')offAway+=overlap;else unknownAway+=overlap;}
+                }
+                const parts=[];
+                if(plan.length)parts.push(`Reference target differs for about ${minutesText(mismatch)} of ${minutesText(compared)} with known targets. This does not prove a schedule fault.`);
+                if(absent.length)parts.push(`During entered away periods so far: Eco reported ${minutesText(ecoAway)}, Eco off ${minutesText(offAway)}, unknown ${minutesText(unknownAway)}. This cannot establish what triggered Eco.`);
+                message.textContent=parts.join(' ')||'No reference supplied. Complete the schedule workbook or enter periods here.';
+            }catch(error){message.textContent=error.message;}
+        }
+        apply.addEventListener('click',()=>compare(true));comparison.append(scheduleLabel,awayLabel,apply,message);card.append(comparison);container.append(card);compare(false);
+    });
+}
+async function loadRuntime() {
+    $('runtime-status').textContent='Loading recorded activity…';
+    try {renderRuntime(await api('/api/thermostat-timeline?day='+encodeURIComponent($('runtime-day').value)));}
+    catch(error){$('runtime-status').textContent=error.message;}
+}
+$('runtime-day').value=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Dubai',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+$('runtime-load').addEventListener('click',loadRuntime);
+loadRuntime();
