@@ -39,6 +39,7 @@ def test_callback_requires_confirmation_and_replay_blocked(client, configured, m
     state=client.cookies.get('sungrow_oauth_state')
     callback=client.get('/auth/sungrow/callback?code=one-time')
     assert callback.status_code==200
+    assert callback.headers["referrer-policy"]=="origin"
     assert not exchange.called
     assert client.post('/auth/sungrow/callback',data={'code':'one-time','state':state},headers={'Origin':'https://attacker.invalid'}).status_code==400
     response=client.post('/auth/sungrow/callback',data={'code':'one-time','state':state},headers={'Origin':'http://testserver'},follow_redirects=False)

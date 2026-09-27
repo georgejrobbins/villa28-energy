@@ -82,7 +82,7 @@ def sungrow_callback(request: Request, code: str | None = None):
         if not saved or saved.expires_at <= datetime.utcnow():
             raise HTTPException(400, "Connection request expired. Start Connect Sungrow again.")
     response = HTMLResponse(f"""<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Connect Sungrow</title><link rel="stylesheet" href="/static/style.css"><main class="container"><h1>Confirm Sungrow connection</h1><p>Continue only if you just approved your own installation on iSolarCloud.</p><p>This application reads monitoring data only.</p><form method="post" action="/auth/sungrow/callback"><input type="hidden" name="code" value="{escape(code, quote=True)}"><input type="hidden" name="state" value="{escape(state, quote=True)}"><button class="btn" type="submit">Finish connecting Sungrow</button></form><p><a href="/">Cancel</a></p></main></html>""")
-    response.headers.update({"Cache-Control": "no-store", "Referrer-Policy": "no-referrer", "Content-Security-Policy": "default-src 'self'; frame-ancestors 'none'; form-action 'self'; base-uri 'none'"})
+    response.headers.update({"Cache-Control": "no-store", "Referrer-Policy": "origin", "Content-Security-Policy": "default-src 'self'; frame-ancestors 'none'; form-action 'self'; base-uri 'none'"})
     return response
 
 @router.post("/auth/sungrow/callback", dependencies=[Depends(require_owner)])
