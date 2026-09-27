@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>villa28-energy</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+<main class="container">
+  <header><p class="eyebrow">YOUR HOME · MONITORING ONLY</p><h1>villa28-energy</h1><p class="subtitle">A clear view of comfort and energy.</p></header>
+  <p id="error" class="notice error" role="alert" hidden></p>
+  <section class="auth-section" aria-labelledby="connections-title">
+    <h2 id="connections-title">Connections</h2>
+    <div class="connection-grid">
+      <div><h3>Google Nest</h3><p id="google-status">Checking connection…</p><p id="pubsub-status"></p><button id="google-auth" class="btn btn-google" disabled>Connect Google Nest</button></div>
+      <div><h3>Sungrow iSolarCloud</h3><p>Paused while we verify the official Developer API details.</p><button class="btn" disabled>Setup deferred</button></div>
+    </div>
+  </section>
+  <section aria-labelledby="zones-title"><h2 id="zones-title">Thermostat zones</h2><div id="thermostat-list" class="list-container"><p class="loading">Loading thermostat data…</p></div></section>
+  <section aria-labelledby="solar-title"><h2 id="solar-title">Solar &amp; grid</h2><div id="solar-list" class="list-container"><p class="loading">Sungrow is not connected yet.</p></div></section>
+  <section aria-labelledby="history-title"><h2 id="history-title">History</h2>
+    <div class="history-controls">
+      <label>Device<select id="history-device"><option value="">Connect a device to view history</option></select></label>
+      <label>Period<select id="hours"><option value="6">Last 6 hours</option><option value="24" selected>Last 24 hours</option><option value="168">Last 7 days</option><option value="720">Last 30 days</option></select></label>
+      <button id="load-history" class="btn">Load history</button>
+    </div>
+    <p id="history-status" class="notice" aria-live="polite">Readings will appear here after a device is connected.</p>
+    <div id="history-charts" class="charts"></div>
+  </section>
+  <footer><p>Read-only · No thermostat, HVAC or inverter controls</p><p>Last refreshed: <span id="last-update">never</span></p></footer>
+</main>
+</body>
+</html>

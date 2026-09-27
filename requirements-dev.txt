@@ -1,0 +1,6 @@
+-r requirements.txt
+pytest==8.4.2
+httpx==0.28.1
+pglast==7.18
+tinycss2==1.5.1
+html5lib==1.1
