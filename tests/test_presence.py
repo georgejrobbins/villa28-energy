@@ -21,6 +21,7 @@ def link(client):
     assert r.status_code==200
     assert r.headers['referrer-policy']=='origin'
     assert r.headers['cache-control']=='no-store'
+    assert r.headers['content-security-policy'].endswith("form-action 'self' " + REDIRECT)
     nonce=re.search('name="nonce" value="([^"]+)"',r.text)[1]
     r=client.post('/home/oauth/authorize',data={'nonce':nonce,'username':'owner','password':'test-only-password'},headers={'Origin':'http://testserver'},follow_redirects=False)
     assert r.status_code==303

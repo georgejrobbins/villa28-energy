@@ -2,6 +2,7 @@
 import hashlib
 import html
 import json
+import logging
 import secrets
 import uuid
 from datetime import datetime, timedelta
@@ -68,6 +69,12 @@ def authorize(client_id: str, redirect_uri: str, state: str, response_type: str)
     # Only the origin is shared, never the OAuth query or state.
     response.headers['Referrer-Policy'] = 'origin'
     response.headers['Cache-Control'] = 'no-store'
+    # Chrome applies form-action to the POST's redirect as well. The exact
+    # Google callback has already passed redirect_allowed above.
+    response.headers['Content-Security-Policy'] = (
+        "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; "
+        "connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; "
+        "form-action 'self' " + redirect_uri)
     response.set_cookie('home_consent',nonce,httponly=True,secure=get_settings().base_url.startswith('https:'),samesite='lax',max_age=600,path='/home/oauth/authorize')
     return response
 
@@ -76,8 +83,18 @@ async def approve(request: Request):
     require_config()
     data = await form_data(request)
     nonce = data.get('nonce','')
-    if not nonce or not secrets.compare_digest(nonce,request.cookies.get('home_consent','')) or request.headers.get('origin') != get_settings().base_url:
-        raise HTTPException(403,'Invalid linking session. Start linking again.')
+    cookie = request.cookies.get('home_consent','')
+    origin = request.headers.get('origin')
+    reason = ('missing-form' if not nonce else
+              'missing-cookie' if not cookie else
+              'session-mismatch' if not secrets.compare_digest(nonce,cookie) else
+              'missing-origin' if not origin else
+              'null-origin' if origin == 'null' else
+              'origin-mismatch' if origin != get_settings().base_url else None)
+    if reason:
+        # Log only a fixed reason code, never cookies, credentials or OAuth state.
+        logging.getLogger(__name__).warning('Home linking rejected: %s', reason)
+        raise HTTPException(403,f'Invalid linking session ({reason}). Start linking again.')
     with SessionLocal() as db:
         guard=db.scalar(select(PresenceState).where(PresenceState.id==1).with_for_update())
         now=datetime.utcnow()

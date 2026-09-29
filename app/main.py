@@ -40,7 +40,7 @@ async def response_headers(request, call_next):
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers.setdefault("Referrer-Policy", "no-referrer")
     response.headers["X-Frame-Options"] = "DENY"
-    response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
+    response.headers.setdefault("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'")
     if not request.url.path.startswith("/static/"):
         response.headers["Cache-Control"] = "no-store"
     return response
