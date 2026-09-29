@@ -4,35 +4,30 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>villa28-energy</title>
-  <link rel="stylesheet" href="/static/style.css?v=1.5.0">
-  <script src="/static/app.js?v=1.5.0" defer></script>
+  <link rel="stylesheet" href="/static/style.css?v=1.6.0">
+  <script src="/static/app.js?v=1.6.0" defer></script>
 </head>
 <body>
 <main class="container">
-  <header><p class="eyebrow">YOUR HOME · MONITORING ONLY</p><h1>villa28-energy</h1><p class="subtitle">A clear view of comfort and energy.</p></header>
+  <header><nav><a href="/admin">Admin</a></nav><p class="eyebrow">YOUR HOME · MONITORING ONLY</p><h1>villa28-energy</h1><p class="subtitle">A clear view of comfort and energy.</p></header>
   <p id="error" class="notice error" role="alert" hidden></p>
-  <section class="auth-section" aria-labelledby="connections-title">
-    <h2 id="connections-title">Connections</h2>
-    <div class="connection-grid">
-      <div><h3>Google Nest</h3><p id="google-status">Checking connection…</p><p id="pubsub-status"></p><button id="google-auth" class="btn btn-google" disabled>Connect Google Nest</button></div>
-      <div><h3>Sungrow iSolarCloud</h3><p id="sungrow-status">Checking connection…</p><button id="sungrow-auth" class="btn" disabled>Connect Sungrow</button></div>
-    </div>
-  </section>
   <section aria-labelledby="runtime-title">
     <h2 id="runtime-title">When was the AC running?</h2>
     <div class="runtime-controls"><label>Day · Dubai time<input id="runtime-day" type="date"></label><button id="runtime-load" class="btn">Show activity</button></div>
     <section aria-labelledby="presence-title"><h3 id="presence-title">Home / Away · selected day</h3><p id="presence-current">Checking Home/Away…</p><p class="legend">Blue: at home · Green: away from property · Striped: unknown</p><div id="presence-history"></div><p id="presence-note" class="notice"></p></section>
     <p class="notice">Estimated from recorded Nest states. Cooling means the AC is running; Off means it is idle. Gaps are unknown. Short cycles between five-minute polls may be missed.</p>
-    <p class="legend">Blue: cooling · Grey: idle · Orange: heating · Striped: unknown · Green: manual Eco reported</p>
+    <p class="legend">Blue: cooling · Grey: idle · Orange: heating · Striped: unknown</p>
     <p id="runtime-status" class="notice" aria-live="polite">Loading activity…</p>
     <div id="runtime-list" class="charts"></div>
-    <p class="notice">Cooling stages 1/2/3, Nest schedules and occupancy are not provided by the official Nest API. Home/Away is recorded separately through a Google Home virtual indicator. Nest’s manual Eco flag does not reliably describe automatic Away/Eco. Room-not-in-use periods will be supplied separately.</p>
+    <p class="notice">Cooling stages 1/2/3, Nest schedules and occupancy are not provided by the official Nest API. Home/Away is recorded separately through a Google Home virtual indicator. Room-not-in-use periods will be supplied separately.</p>
     <details><summary>Compare with a room schedule</summary><p class="notice">Enter a reference schedule in each room below. These are comparison notes, not changes to Nest. Saved only in this browser. The timeline shows when the reported target differs from your reference; a cooling schedule does not mean the AC must run continuously.</p></details>
   </section>
   <section aria-labelledby="zones-title"><h2 id="zones-title">Thermostat zones</h2><div id="thermostat-list" class="list-container"><p class="loading">Loading thermostat data…</p></div></section>
   <section aria-labelledby="solar-title"><h2 id="solar-title">Solar &amp; grid</h2><div id="solar-list" class="list-container"><p class="loading">Sungrow is not connected yet.</p></div></section>
   <section aria-labelledby="solar-history-title"><h2 id="solar-history-title">Solar and grid over time · Dubai time</h2>
-    <div class="runtime-controls"><label>Period<select id="solar-hours"><option value="24">Last 24 hours</option><option value="168">Last 7 days</option><option value="720">Last 30 days</option></select></label><button id="solar-load" class="btn">Show solar history</button></div>
+    <div class="runtime-controls"><label>Period<select id="solar-hours"><option value="24">Last 24 hours</option><option value="168" selected>Last 7 days</option><option value="720">Last 30 days</option></select></label><button id="solar-load" class="btn">Show solar history</button></div>
+    <p class="notice">kW tells you how fast the panels are producing now. kWh tells you how much energy they produced over time. Orange = solar produced · Red = grid imported · Green = grid exported.</p>
+    <section class="solar-explainer"><h3>Weather or dirty panels?</h3><p>A lower daily total alone cannot tell us the cause. Cloud, haze, panel temperature, seasonal sunlight, shading, downtime and dirt can all reduce output. We are not yet measuring sunlight or weather alongside this installation, so there is no weather-adjusted performance score.</p><p>Next: compare output with sunlight and temperature for the same hours, add the array size/direction/tilt, and record cleaning dates. A persistent shortfall after accounting for weather can flag a problem to investigate; a recovery after cleaning supports dirt as a cause. A few days of readings cannot establish degradation.</p><p><a href="https://www.nrel.gov/pv/fleet-performance-data-initiative.html">How solar performance is assessed · NREL</a></p></section>
     <p id="solar-history-status" class="notice" aria-live="polite"></p><div id="solar-history-charts" class="charts"></div>
     <p class="notice">Individual readings are collected about every five minutes and retained in PostgreSQL for both Nest and solar; they are not replaced by daily summaries. Choose Last 7 days to review a week without averaging away the five-minute samples. History starts when collection began. AC runtime is not AC electricity use; no per-room energy meter is connected.</p>
     <p><a href="/api/export-history?provider=nest&amp;days=30">Download 30 days of Nest readings</a> · <a href="/api/export-history?provider=solar&amp;days=30">Download 30 days of solar readings</a></p>

@@ -48,3 +48,7 @@ async def response_headers(request, call_next):
 @app.get("/", dependencies=[Depends(require_owner)])
 def root():
     return FileResponse(static_dir / "index.html")
+
+@app.get('/admin', dependencies=[Depends(require_owner)])
+def admin():
+    return FileResponse(static_dir / 'admin.html')

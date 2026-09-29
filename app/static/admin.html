@@ -1,0 +1,8 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Admin · villa28-energy</title><link rel="stylesheet" href="/static/style.css?v=1.6.0"><script src="/static/admin.js?v=1.6.0" defer></script></head><body><main class="container"><header><a href="/">← Dashboard</a><h1>Admin</h1><p>Connections and collection status</p></header><p id="error" class="notice error" role="alert" hidden></p>  <section class="auth-section" aria-labelledby="connections-title">
+    <h2 id="connections-title">Connections</h2>
+    <div class="connection-grid">
+      <div><h3>Google Nest</h3><p id="google-status">Checking connection…</p><p id="pubsub-status"></p><button id="google-auth" class="btn btn-google" disabled>Connect Google Nest</button></div>
+      <div><h3>Sungrow iSolarCloud</h3><p id="sungrow-status">Checking connection…</p><button id="sungrow-auth" class="btn" disabled>Connect Sungrow</button></div>
+    </div>
+  </section>
+<section><h2>Google Home presence</h2><p id="home-status">Checking connection…</p><p>Keep Villa28 Presence linked in Google Home. Google Home Playground is no longer used by the Home/Away automation and can be unlinked.</p></section><footer>Owner access required · Monitoring only</footer></main></body></html>

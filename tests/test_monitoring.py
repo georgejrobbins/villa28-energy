@@ -183,3 +183,12 @@ def test_launcher_reads_port_without_shell(monkeypatch):
     monkeypatch.setattr(uvicorn,'run',run)
     runpy.run_module('app.run',run_name='__main__')
     run.assert_called_once_with('app.main:app',host='0.0.0.0',port=9123,access_log=False)
+
+def test_admin_requires_owner_and_connections_are_separate(client):
+    assert client.get('/admin',auth=None).status_code == 401
+    admin=client.get('/admin')
+    assert admin.status_code == 200
+    assert 'id="google-auth"' in admin.text
+    homepage=client.get('/').text
+    assert 'id="google-auth"' not in homepage
+    assert 'href="/admin"' in homepage
