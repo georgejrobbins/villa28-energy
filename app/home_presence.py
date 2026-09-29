@@ -64,6 +64,10 @@ def authorize(client_id: str, redirect_uri: str, state: str, response_type: str)
         nonce = credential(db,'consent',str(uuid.uuid4()),10,{'redirect':redirect_uri,'state':state})
         db.commit()
     response = HTMLResponse('''<!doctype html><html lang="en"><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>Link Villa28 Presence</title><link rel="stylesheet" href="/static/style.css"></head><body><main class="container"><h1>Link Villa28 Presence to Google</h1><p>Sign in with your villa28-energy owner credentials.</p><p>By linking, you authorize Google to control the virtual Away indicator and query its state. Home/Away indicator updates will be stored in your energy dashboard. This does not control any thermostat, HVAC system or inverter.</p><form method="post" action="/home/oauth/authorize"><input type="hidden" name="nonce" value="'''+html.escape(nonce,quote=True)+'''"><p><label>Username <input name="username" autocomplete="username" required></label></p><p><label>Password <input name="password" type="password" autocomplete="current-password" required></label></p><button class="btn" type="submit">Agree and link to Google</button></form><p><a href="/">Cancel</a> · <a href="https://policies.google.com/privacy">Google privacy policy</a> · <a href="https://myaccount.google.com/connections">Manage linked accounts</a></p></main></body></html>''')
+    # Preserve the browser's Origin on form POST; no-referrer can make it null.
+    # Only the origin is shared, never the OAuth query or state.
+    response.headers['Referrer-Policy'] = 'origin'
+    response.headers['Cache-Control'] = 'no-store'
     response.set_cookie('home_consent',nonce,httponly=True,secure=get_settings().base_url.startswith('https:'),samesite='lax',max_age=600,path='/home/oauth/authorize')
     return response
 

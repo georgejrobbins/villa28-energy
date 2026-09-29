@@ -19,6 +19,8 @@ REDIRECT='https://oauth-redirect.googleusercontent.com/r/test-presence'
 def link(client):
     r=client.get('/home/oauth/authorize',params={'client_id':'villa28-google-home','redirect_uri':REDIRECT,'state':'a&b','response_type':'code'})
     assert r.status_code==200
+    assert r.headers['referrer-policy']=='origin'
+    assert r.headers['cache-control']=='no-store'
     nonce=re.search('name="nonce" value="([^"]+)"',r.text)[1]
     r=client.post('/home/oauth/authorize',data={'nonce':nonce,'username':'owner','password':'test-only-password'},headers={'Origin':'http://testserver'},follow_redirects=False)
     assert r.status_code==303
