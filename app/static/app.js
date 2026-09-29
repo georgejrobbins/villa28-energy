@@ -34,7 +34,7 @@ function renderThermostats(rows) {
         const target = t.mode === 'HEATCOOL' ? `${format(t.target_heat_temperature, 1, ' °C')} – ${format(t.target_cool_temperature, 1, ' °C')}` : format(t.target_temperature, 1, ' °C');
         metric(card, 'Target', target); metric(card, 'Humidity', format(t.humidity, 1, '%'));
         metric(card, 'Mode', t.mode || 'Unknown'); metric(card, 'AC activity', t.hvac_status === 'COOLING' ? 'Cooling' : t.hvac_status === 'OFF' ? 'Idle' : t.hvac_status || 'Unknown');
-        metric(card, 'Property status (Eco proxy)', t.eco_state === 'MANUAL_ECO' ? 'Away from property' : t.eco_state === 'OFF' ? 'Normal / Eco off' : 'Unknown'); metric(card, 'Connectivity', t.connectivity || 'Unknown');
+        metric(card, 'Nest manual Eco flag', t.eco_state === 'MANUAL_ECO' ? 'Manual Eco reported' : t.eco_state === 'OFF' ? 'Not reported (automatic Eco may still apply)' : 'Unknown'); metric(card, 'Connectivity', t.connectivity || 'Unknown');
         metric(card, 'Reading', new Date(t.timestamp).toLocaleString());
         const age = Date.now() - new Date(t.timestamp).getTime();
         if (age > 15 * 60 * 1000) card.append(element('p', 'This reading is more than 15 minutes old.', 'stale'));
@@ -83,6 +83,7 @@ async function refresh() {
         $('sungrow-status').textContent = !sg.configured ? 'Sungrow credentials need configuration in Railway.' : !sg.connected ? 'Ready to connect your iSolarCloud installation.' : sg.polling.state === 'error' ? 'Connected, but the latest reading failed. Check Railway logs.' : 'Sungrow connected. Readings update every five minutes or the configured longer interval.';
         $('sungrow-auth').disabled = !sg.configured || !sg.encryption_ready;
         $('sungrow-auth').textContent = sg.connected ? 'Reconnect Sungrow' : 'Connect Sungrow';
+        loadPresence();
         $('last-update').textContent = new Date().toLocaleString(); $('error').hidden = true;
         clearTimeout(timer); timer = setTimeout(refresh, 30000);
     } catch (error) { $('error').textContent = error.message; $('error').hidden = false; clearTimeout(timer); timer = setTimeout(refresh, 30000); }
@@ -154,18 +155,18 @@ function renderRuntime(data) {
     data.devices.forEach(device=>{
         const card=element('article',undefined,'runtime-row');card.append(element('h3',device.device_name));
         const totals=device.minutes;
-        card.append(element('p',`Estimated cooling ${minutesText(totals.COOLING)} · Idle ${minutesText(totals.OFF)} · Away (Eco) ${minutesText(totals.ECO)} · Unknown ${minutesText(totals.UNKNOWN)}`));
+        card.append(element('p',`Estimated cooling ${minutesText(totals.COOLING)} · Idle ${minutesText(totals.OFF)} · Manual Eco ${minutesText(totals.ECO)} · Unknown ${minutesText(totals.UNKNOWN)}`));
         const detail=element('p','Select a coloured period to see times and the recorded target.','runtime-details');
         const axis=element('div',undefined,'runtime-axis');axis.append(element('span',dubaiTime(start)),element('span',dubaiTime(end)));card.append(axis);
         for(const kind of ['hvac','eco']) {
-            card.append(element('p',kind==='hvac'?'AC activity':'Away from property (Eco proxy)','legend'));
+            card.append(element('p',kind==='hvac'?'AC activity':'Nest manual Eco flag','legend'));
             const track=element('div',undefined,'runtime-track'+(kind==='eco'?' eco-track':''));
             device.segments.forEach(s=>{
                 const state=kind==='hvac'?s.hvac:s.eco;
                 const color=state==='MANUAL_ECO'?'eco':state.toLowerCase();
                 const button=element('button',undefined,'runtime-segment runtime-'+color);
                 button.type='button';button.style.width=((Date.parse(s.end)-Date.parse(s.start))/span*100)+'%';
-                const label=`${dubaiTime(s.start)}–${dubaiTime(s.end)} · ${state==='MANUAL_ECO'?'Away from property (Eco)':state==='OFF'?(kind==='hvac'?'Idle':'Eco off'):state.toLowerCase()} · Cooling target ${format(s.target_cool_temperature,1,' °C')} · ${s.source==='gap'?'No recent reading':'Estimated from recorded states'}`;
+                const label=`${dubaiTime(s.start)}–${dubaiTime(s.end)} · ${state==='MANUAL_ECO'?'Manual Eco reported':state==='OFF'?(kind==='hvac'?'Idle':'Manual Eco not reported'):state.toLowerCase()} · Cooling target ${format(s.target_cool_temperature,1,' °C')} · ${s.source==='gap'?'No recent reading':'Estimated from recorded states'}`;
                 button.title=label;button.setAttribute('aria-label',label);button.addEventListener('click',()=>{detail.textContent=label;});track.append(button);
             });card.append(track);
         }
@@ -191,7 +192,7 @@ function renderRuntime(data) {
                 }
                 const parts=[];
                 if(plan.length)parts.push(`Reference target differs for about ${minutesText(mismatch)} of ${minutesText(compared)} with known targets. This does not prove a schedule fault.`);
-                if(absent.length)parts.push(`During entered away periods so far: Eco reported ${minutesText(ecoAway)}, Eco off ${minutesText(offAway)}, unknown ${minutesText(unknownAway)}. This cannot establish what triggered Eco.`);
+                if(absent.length)parts.push(`During entered away periods so far: Eco reported ${minutesText(ecoAway)}, Manual Eco not reported ${minutesText(offAway)}, unknown ${minutesText(unknownAway)}. This cannot establish what triggered Eco.`);
                 message.textContent=parts.join(' ')||'No reference supplied. Complete the schedule workbook or enter periods here.';
             }catch(error){message.textContent=error.message;}
         }
@@ -225,3 +226,31 @@ async function loadSolarHistory() {
 }
 $('solar-load').addEventListener('click',loadSolarHistory);
 loadSolarHistory();
+
+async function loadPresence() {
+    const box=$('presence-history');
+    try {
+        const data=await api('/api/presence?day='+encodeURIComponent($('runtime-day').value));
+        $('presence-current').textContent=!data.connected?'Home/Away not linked':data.state==='UNKNOWN'?'Home/Away unknown — waiting for first update':data.state==='AWAY'?'Away from property':'At home';
+        $('presence-note').textContent=(data.last_received?'Last signal: '+new Date(data.last_received).toLocaleString('en-GB',{timeZone:'Asia/Dubai'})+' Dubai time. ':'')+data.note;
+        box.replaceChildren();
+        const track=element('div',undefined,'runtime-track presence-track');
+        const width=new Date(data.end)-new Date(data.start);
+        const detail=element('p','Select a period for its recorded times.','runtime-details');
+        for(const segment of data.segments) {
+            const name=segment.state==='AWAY'?'Away from property':segment.state==='HOME'?'At home':'Unknown';
+            const label=`${dubaiTime(segment.start)}–${dubaiTime(segment.end)} · ${name}`;
+            const button=element('button',name,'presence-segment presence-'+segment.state.toLowerCase());
+            button.style.width=((new Date(segment.end)-new Date(segment.start))/width*100)+'%';
+            button.title=label; button.setAttribute('aria-label',label);
+            button.addEventListener('click',()=>{detail.textContent=label;}); track.append(button);
+        }
+        box.append(track,detail);
+        const events=element('ul');
+        data.events.forEach(event=>events.append(element('li',`${dubaiTime(event.timestamp)} · ${event.state==='AWAY'?'Away from property':event.state==='HOME'?'At home':'Connection removed / unknown'}`)));
+        if(data.events.length) box.append(events);
+        else box.append(element('p','No Home/Away updates recorded on this day.'));
+    } catch(error) { $('presence-note').textContent='Could not load Home/Away: '+error.message; }
+}
+$('runtime-load').addEventListener('click',loadPresence);
+loadPresence();

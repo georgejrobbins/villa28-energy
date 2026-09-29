@@ -108,3 +108,7 @@ pytest -q
 Tests isolate application state in SQLite, parse DDL with a PostgreSQL parser, and exercise owner authentication, OAuth state/replay/expiry, token encryption and refresh, thermostat mappings, duplicate/late events, health errors, history and summaries. The optional PostgreSQL integration test uses `TEST_POSTGRES_URL` and creates/drops its own temporary schema. GitHub CI runs it against PostgreSQL 16 and also checks JavaScript syntax.
 
 Real Google device access and Pub/Sub delivery require the configured account and consent; passing automated tests is not a claim that a household's devices have connected.
+
+## Google Home presence
+
+See [HOME-PRESENCE.md](HOME-PRESENCE.md) for the optional virtual-switch bridge and its linking setup. Home/Away is independent of the Nest manual Eco flag. The app remains monitoring-only for physical devices.

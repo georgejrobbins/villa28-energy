@@ -78,3 +78,31 @@ class OAuthState(Base):
     __tablename__ = "oauth_states"
     state_hash = Column(String(64), primary_key=True)
     expires_at = Column(DateTime, nullable=False)
+
+class HomeCredential(Base):
+    __tablename__ = 'home_credentials'
+    token_hash = Column(String(64), primary_key=True)
+    kind = Column(String, nullable=False)
+    family = Column(String, nullable=False, index=True)
+    expires_at = Column(DateTime, nullable=True)
+    payload = Column(Text, nullable=False, default='{}')
+
+class PresenceState(Base):
+    __tablename__ = 'presence_state'
+    id = Column(Integer, primary_key=True)
+    state = Column(String, nullable=False, default='UNKNOWN')
+    auth_window = Column(DateTime, nullable=True)
+    auth_failures = Column(Integer, nullable=False, default=0)
+    updated_at = Column(DateTime, nullable=True)
+
+class PresenceEvent(Base):
+    __tablename__ = 'presence_events'
+    id = Column(Integer, primary_key=True)
+    state = Column(String, nullable=False)
+    source = Column(String, nullable=False)
+    timestamp = Column(DateTime, nullable=False, index=True)
+
+class HomeReceipt(Base):
+    __tablename__ = 'home_receipts'
+    request_key = Column(String(64), primary_key=True)
+    response = Column(Text, nullable=False)

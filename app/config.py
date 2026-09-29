@@ -5,6 +5,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
     database_url: str = ""
+    home_project_id: str = ""
+    home_client_secret: str = ""
     google_client_id: str = ""
     google_client_secret: str = ""
     google_project_id: str = ""  # Legacy alias for Device Access project ID

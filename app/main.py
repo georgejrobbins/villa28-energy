@@ -8,6 +8,7 @@ from app.utils.logging import logger
 from app.database import init_db
 from app.config import get_settings
 from app.routes import health, auth, api
+from app import home_presence
 from app.security import require_owner
 from app.tasks.polling import start_polling
 from app.google.pubsub_handler import run_subscriber
@@ -26,6 +27,7 @@ async def lifespan(app):
         await asyncio.gather(*tasks, return_exceptions=True)
 
 app = FastAPI(title="villa28-energy", version="1.2.0", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
+app.include_router(home_presence.router)
 app.include_router(health.router)
 app.include_router(auth.router)
 app.include_router(api.router)

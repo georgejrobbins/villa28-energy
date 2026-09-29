@@ -4,8 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>villa28-energy</title>
-  <link rel="stylesheet" href="/static/style.css?v=1.4.0">
-  <script src="/static/app.js?v=1.4.0" defer></script>
+  <link rel="stylesheet" href="/static/style.css?v=1.5.0">
+  <script src="/static/app.js?v=1.5.0" defer></script>
 </head>
 <body>
 <main class="container">
@@ -21,11 +21,12 @@
   <section aria-labelledby="runtime-title">
     <h2 id="runtime-title">When was the AC running?</h2>
     <div class="runtime-controls"><label>Day · Dubai time<input id="runtime-day" type="date"></label><button id="runtime-load" class="btn">Show activity</button></div>
+    <section aria-labelledby="presence-title"><h3 id="presence-title">Home / Away · selected day</h3><p id="presence-current">Checking Home/Away…</p><p class="legend">Blue: at home · Green: away from property · Striped: unknown</p><div id="presence-history"></div><p id="presence-note" class="notice"></p></section>
     <p class="notice">Estimated from recorded Nest states. Cooling means the AC is running; Off means it is idle. Gaps are unknown. Short cycles between five-minute polls may be missed.</p>
-    <p class="legend">Blue: cooling · Grey: idle · Orange: heating · Striped: unknown · Green: away from property (Eco proxy)</p>
+    <p class="legend">Blue: cooling · Grey: idle · Orange: heating · Striped: unknown · Green: manual Eco reported</p>
     <p id="runtime-status" class="notice" aria-live="polite">Loading activity…</p>
     <div id="runtime-list" class="charts"></div>
-    <p class="notice">Cooling stages 1/2/3, Nest schedules and occupancy are not provided by the official Nest API. Eco is labelled Away from property, as requested. Room-not-in-use periods will be supplied separately. It is not measured presence and does not explain why Eco changed.</p>
+    <p class="notice">Cooling stages 1/2/3, Nest schedules and occupancy are not provided by the official Nest API. Home/Away is recorded separately through a Google Home virtual indicator. Nest’s manual Eco flag does not reliably describe automatic Away/Eco. Room-not-in-use periods will be supplied separately.</p>
     <details><summary>Compare with a room schedule</summary><p class="notice">Enter a reference schedule in each room below. These are comparison notes, not changes to Nest. Saved only in this browser. The timeline shows when the reported target differs from your reference; a cooling schedule does not mean the AC must run continuously.</p></details>
   </section>
   <section aria-labelledby="zones-title"><h2 id="zones-title">Thermostat zones</h2><div id="thermostat-list" class="list-container"><p class="loading">Loading thermostat data…</p></div></section>
