@@ -192,3 +192,16 @@ def test_admin_requires_owner_and_connections_are_separate(client):
     homepage=client.get('/').text
     assert 'id="google-auth"' not in homepage
     assert 'href="/admin"' in homepage
+
+
+def test_public_information_does_not_expose_monitoring(client):
+    import html5lib
+    client.auth = None
+    for path in ['/about', '/privacy', '/terms']:
+        response = client.get(path)
+        assert response.status_code == 200
+        html5lib.HTMLParser(strict=True).parse(response.text)
+        assert 'Cache-Control' in response.headers
+        assert 'id="google-auth"' not in response.text
+    for path in ['/', '/admin', '/api/current', '/api/history', '/api/status', '/api/presence']:
+        assert client.get(path).status_code == 401

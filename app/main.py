@@ -52,3 +52,16 @@ def root():
 @app.get('/admin', dependencies=[Depends(require_owner)])
 def admin():
     return FileResponse(static_dir / 'admin.html')
+
+# Public OAuth information pages contain no household data or connection controls.
+@app.get('/about')
+def about():
+    return FileResponse(static_dir / 'about.html')
+
+@app.get('/privacy')
+def privacy():
+    return FileResponse(static_dir / 'privacy.html')
+
+@app.get('/terms')
+def terms():
+    return FileResponse(static_dir / 'terms.html')
